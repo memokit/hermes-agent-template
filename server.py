@@ -49,6 +49,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+from personalities_api import route_personalities, route_office
 
 HERMES_HOME = os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
 ENV_FILE = Path(HERMES_HOME) / ".env"
@@ -896,6 +897,8 @@ async def route_setup_404(request: Request) -> Response:
 
 # ── App lifecycle ─────────────────────────────────────────────────────────────
 async def auto_start():
+    print("[server] Auto-start disabled for testing", flush=True)
+    return
     if is_config_complete():
         asyncio.create_task(gw.start())
     else:
@@ -906,7 +909,7 @@ async def auto_start():
 async def lifespan(app):
     # Dashboard runs always — it's the user-facing UI after setup is done,
     # and it's independent of gateway state.
-    asyncio.create_task(dash.start())
+    # asyncio.create_task(dash.start())  # Disabled for testing
     await auto_start()
     try:
         yield
@@ -1068,6 +1071,11 @@ async def ws_proxy(websocket: WebSocket) -> None:
 ANY_METHOD = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 
 routes = [
+    # Personalities API (Public)
+    Route("/api/personalities", route_personalities),
+    # Virtual Office entry point
+    Route("/office", route_office),
+
     # Public — no auth required.
     Route("/health",                            route_health),
     Route("/login",                             page_login,          methods=["GET"]),
@@ -1132,3 +1140,60 @@ if __name__ == "__main__":
         loop.add_signal_handler(sig, _shutdown)
 
     loop.run_until_complete(server.serve())
+
+# ── Personalities API ───────────────────────────────────────────────
+import yaml
+from starlette.responses import JSONResponse
+
+async def route_personalities(request):
+    """GET /api/personalities - Return Hermes personalities from config.yaml"""
+    try:
+        config_path = os.environ.get("HERMES_CONFIG_PATH", str(Path.home() / ".hermes/config.yaml"))
+        
+        if not os.path.exists(config_path):
+            return JSONResponse(
+                {"success": False, "error": f"config.yaml not found at {config_path}"},
+                status_code=404
+            )
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        personalities = config.get('personalities', [])
+        
+        return JSONResponse({
+            "success": True,
+            "count": len(personalities),
+            "personalities": personalities,
+            "source": "hermes-config"
+        })
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "error": str(e)},
+            status_code=500
+        )
+
+
+async def route_office(request):
+    """GET /office - Virtual Office entry point"""
+    # For now, return a simple HTML page
+    # Later: serve the actual Virtual Office frontend
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Virtual Office</title>
+        <style>
+            body { font-family: sans-serif; text-align: center; padding: 50px; }
+            h1 { color: #333; }
+        </style>
+    </head>
+    <body>
+        <h1>🏢 Virtual Office</h1>
+        <p>Welcome to the Virtual Office!</p>
+        <p>API: <a href="/api/personalities">/api/personalities</a></p>
+    </body>
+    </html>
+    """
+    return HTMLResponse(html)
+
