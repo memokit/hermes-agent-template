@@ -897,8 +897,6 @@ async def route_setup_404(request: Request) -> Response:
 
 # ── App lifecycle ─────────────────────────────────────────────────────────────
 async def auto_start():
-    print("[server] Auto-start disabled for testing", flush=True)
-    return
     if is_config_complete():
         asyncio.create_task(gw.start())
     else:
