@@ -73,9 +73,6 @@ ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 if not ADMIN_PASSWORD:
     ADMIN_PASSWORD = secrets.token_urlsafe(16)
-    print(f"[server] Admin credentials — username: {ADMIN_USERNAME}  password: {ADMIN_PASSWORD}", flush=True)
-else:
-    print(f"[server] Admin username: {ADMIN_USERNAME}", flush=True)
 
 # ── Env var registry ──────────────────────────────────────────────────────────
 # (key, label, category, is_secret)
@@ -1138,61 +1135,8 @@ if __name__ == "__main__":
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, _shutdown)
 
+    print(f"[server] Admin username: {ADMIN_USERNAME}", flush=True)
+    if 'ADMIN_PASSWORD' in globals() and ADMIN_PASSWORD:
+        print(f"[server] Admin credentials — username: {ADMIN_USERNAME}  password: {ADMIN_PASSWORD}", flush=True)
+
     loop.run_until_complete(server.serve())
-
-# ── Personalities API ───────────────────────────────────────────────
-import yaml
-from starlette.responses import JSONResponse
-
-async def route_personalities(request):
-    """GET /api/personalities - Return Hermes personalities from config.yaml"""
-    try:
-        config_path = os.environ.get("HERMES_CONFIG_PATH", str(Path.home() / ".hermes/config.yaml"))
-        
-        if not os.path.exists(config_path):
-            return JSONResponse(
-                {"success": False, "error": f"config.yaml not found at {config_path}"},
-                status_code=404
-            )
-        
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        
-        personalities = config.get('personalities', [])
-        
-        return JSONResponse({
-            "success": True,
-            "count": len(personalities),
-            "personalities": personalities,
-            "source": "hermes-config"
-        })
-    except Exception as e:
-        return JSONResponse(
-            {"success": False, "error": str(e)},
-            status_code=500
-        )
-
-
-async def route_office(request):
-    """GET /office - Virtual Office entry point"""
-    # For now, return a simple HTML page
-    # Later: serve the actual Virtual Office frontend
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Virtual Office</title>
-        <style>
-            body { font-family: sans-serif; text-align: center; padding: 50px; }
-            h1 { color: #333; }
-        </style>
-    </head>
-    <body>
-        <h1>🏢 Virtual Office</h1>
-        <p>Welcome to the Virtual Office!</p>
-        <p>API: <a href="/api/personalities">/api/personalities</a></p>
-    </body>
-    </html>
-    """
-    return HTMLResponse(html)
-

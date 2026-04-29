@@ -19,6 +19,12 @@ personalities:
 EOF
 fi
 
-# Start server with uvicorn (Railway sets PORT automatically)
-echo "🚀 Starting server on port ${PORT:-8080}..."
-exec uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
+# Start server - use server.py directly since it has uvicorn server in __main__
+PORT="${PORT}"
+if [ -z "$PORT" ]; then
+    echo "ERROR: PORT environment variable is not set!" >&2
+    exit 1
+fi
+echo "🚀 Starting server on port ${PORT}..."
+export PORT
+exec python server.py
