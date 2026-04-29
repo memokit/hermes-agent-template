@@ -9,11 +9,9 @@ from starlette.responses import JSONResponse, HTMLResponse
 async def route_personalities(request):
     """GET /api/personalities - Return Hermes personalities from config.yaml"""
     try:
-        # Get config path from env or default
-        config_path = os.environ.get(
-            "HERMES_CONFIG_PATH", 
-            str(Path.home() / ".hermes/config.yaml")
-        )
+        # Get config path from HERMES_HOME env (same as server.py)
+        hermes_home = os.environ.get("HERMES_HOME", "/data/.hermes")
+        config_path = os.path.join(hermes_home, "config.yaml")
         
         if not os.path.exists(config_path):
             return JSONResponse(
