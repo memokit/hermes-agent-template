@@ -40,55 +40,80 @@ async def route_personalities(request):
 
 
 async def route_office(request):
-    """GET /office - Virtual Office entry point"""
-    html = """
-    <!DOCTYPE html>
-    <html lang="th">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Virtual Office - Hermes Agent</title>
-        <style>
-            body { 
-                font-family: sans-serif; 
-                text-align: center; 
-                padding: 50px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                min-height: 100vh;
-                margin: 0;
-            }
-            h1 { font-size: 3em; margin-bottom: 20px; }
-            p { font-size: 1.2em; margin: 10px 0; }
-            .card {
-                background: rgba(255,255,255,0.1);
-                backdrop-filter: blur(10px);
-                border-radius: 15px;
-                padding: 30px;
-                max-width: 600px;
-                margin: 30px auto;
-            }
-            a { 
-                color: #ffd700; 
-                text-decoration: none; 
-                font-weight: bold;
-            }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h1>🏢 Virtual Office</h1>
-            <p>Welcome to Hermes Agent Virtual Office!</p>
-            <p>Status: <strong>Online</strong> ✅</p>
-            <p>
-                <a href="/api/personalities">📊 View Personalities API</a>
-            </p>
-            <p>
-                <a href="/">← Back to Hermes Dashboard</a>
-            </p>
-        </div>
-    </body>
-    </html>
-    """
-    return HTMLResponse(html)
+    """GET /office* - Serve Virtual Office (Next.js static files)"""
+    import mimetypes
+    
+    base_dir = Path(__file__).parent
+    office_dir = base_dir / "virtual-office" / ".next" / "server" / "app"
+    
+    # If not built, return placeholder
+    if not office_dir.exists():
+        office_dir = base_dir / "virtual-office" / "src" / "app" / "office"
+        if not office_dir.exists():
+            html = """
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Virtual Office - Building...</title>
+                <style>
+                    body { 
+                        font-family: sans-serif; 
+                        text-align: center; 
+                        padding: 50px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        min-height: 100vh;
+                        margin: 0;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>🏢 Virtual Office</h1>
+                <p>Building... Please wait.</p>
+            </body>
+            </html>
+            """
+            return HTMLResponse(html)
+    
+    # Get the requested path
+    path = request.path_params.get("path", "")
+    
+    # Map /office and /office/ to index.html
+    if not path or path == "/":
+        path = "index.html"
+    elif path.endswith("/"):
+        path = path + "index.html"
+    
+    # Handle Next.js special paths
+    file_path = office_dir / path
+    if not str(file_path).startswith(str(office_dir)):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    
+    if file_path.is_dir():
+        file_path = file_path / "index.html"
+    
+    # Try _next/static files
+    if not file_path.exists():
+        static_dir = base_dir / "virtual-office" / ".next" / "static"
+        static_path = static_dir / path
+        if static_path.exists():
+            file_path = static_path
+    
+    # Try public folder
+    if not file_path.exists():
+        public_dir = base_dir / "virtual-office" / "public"
+        public_path = public_dir / path
+        if public_path.exists():
+            file_path = public_path
+    
+    if file_path.exists() and file_path.is_file():
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        return Response(
+            content=file_path.read_bytes(),
+            media_type=content_type or "application/octet-stream"
+        )
+    
+    # Return 404
+    return JSONResponse({"error": "Not found", "path": path}, status_code=404)

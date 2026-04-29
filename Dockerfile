@@ -56,6 +56,18 @@ RUN git clone --depth 1 --branch ${HERMES_REF} https://github.com/NousResearch/h
 # - We keep ui-tui/ entirely (node_modules + dist + src) so hermes's
 #   freshness checks don't trigger a re-install at runtime.
 
+# Virtual Office - Next.js static files
+COPY virtual-office/src /app/virtual-office/src
+COPY virtual-office/public /app/virtual-office/public
+COPY virtual-office/.next /app/virtual-office/.next
+COPY virtual-office/.gitignore /app/virtual-office/
+COPY virtual-office/package.json /app/virtual-office/
+COPY virtual-office/package-lock.json* /app/virtual-office/
+COPY virtual-office/tsconfig.json /app/virtual-office/
+COPY virtual-office/next.config.ts /app/virtual-office/
+COPY virtual-office/next-env.d.ts /app/virtual-office/
+COPY virtual-office/eslint.config.mjs /app/virtual-office/
+
 COPY requirements.txt /app/requirements.txt
 RUN uv pip install --system --no-cache -r /app/requirements.txt
 

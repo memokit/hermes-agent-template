@@ -1069,8 +1069,9 @@ ANY_METHOD = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 routes = [
     # Personalities API (Public)
     Route("/api/personalities", route_personalities),
-    # Virtual Office entry point
+    # Virtual Office (Next.js static files)
     Route("/office", route_office),
+    Route("/office/{path:path}", route_office),
 
     # Public — no auth required.
     Route("/health",                            route_health),
