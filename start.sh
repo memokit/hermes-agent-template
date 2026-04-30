@@ -19,6 +19,14 @@ personalities:
 EOF
 fi
 
-# Start server (WORKDIR is /app, so server.py is found automatically)
-echo "🚀 Starting server on port ${PORT:-8080}..."
+# Check if NEXTJS_URL is set (for Railway multi-service setup)
+if [ -z "$NEXTJS_URL" ]; then
+    echo "⚠️  WARNING: NEXTJS_URL not set. Using default http://localhost:3459"
+    export NEXTJS_URL="http://localhost:3459"
+else
+    echo "✅ NEXTJS_URL configured: $NEXTJS_URL"
+fi
+
+# Start Python server (Railway sets PORT automatically)
+echo "🚀 Starting Hermes API on port ${PORT:-8080}..."
 exec python server.py

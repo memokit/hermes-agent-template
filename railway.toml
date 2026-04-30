@@ -1,10 +1,60 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+# Railway Configuration for Hermes Agent Template
+# Two services: (1) Python API, (2) Next.js Virtual Office
 
-[deploy]
-startCommand = "/app/start.sh"
-healthcheckPath = "/health"
-healthcheckTimeout = 300
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 10
+# ===========================================
+# Service 1: Python API (Hermes Agent + FastAPI)
+# ===========================================
+[[services]]
+  name = "api"
+  source = "."
+  
+  [services.build]
+    builder = "dockerfile"
+    dockerfilePath = "Dockerfile"
+  
+  [services.deploy]
+    startCommand = "/app/start.sh"
+    healthcheckPath = "/health"
+    healthcheckTimeout = 300
+    restartPolicyType = "on_failure"
+    restartPolicyMaxRetries = 10
+  
+  # Environment Variables for API service
+  [services.variables]
+    NEXTJS_URL = "https://${RAILWAY_SERVICE_VIRTUAL_OFFICE_URL}"
+    HERMES_HOME = "/data/.hermes"
+
+# ===========================================
+# Service 2: Next.js Virtual Office (Phaser Game)
+# ===========================================
+[[services]]
+  name = "virtual-office"
+  source = "virtual-office"
+  
+  [services.build]
+    builder = "nixpacks"
+    # Railway will auto-detect Next.js and run: npm install && npm run build
+  
+  [services.deploy]
+    startCommand = "npm start"
+    healthcheckPath = "/"
+    healthcheckTimeout = 120
+    restartPolicyType = "on_failure"
+    restartPolicyMaxRetries = 5
+  
+  # Environment Variables for Next.js service
+  [services.variables]
+    NODE_ENV = "production"
+    # Railway automatically sets PORT for Next.js to bind to
+  
+  # Railway will expose this service publicly
+  [[services.domains]]
+    pattern = "virtual-office"
+
+# ===========================================
+# Volumes (optional - for persistent data)
+# ===========================================
+[[volumes]]
+  name = "hermes-data"
+  mountPath = "/data"
+  size = "1GB"
