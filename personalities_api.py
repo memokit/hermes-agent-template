@@ -42,9 +42,10 @@ async def route_personalities(request):
 async def route_office(request):
     """GET /office* - Reverse Proxy to Next.js (Phaser Virtual Office)"""
     import httpx
+    import os
     
-    # Next.js server runs on port 3458
-    NEXTJS_URL = "http://localhost:3459"
+    # Next.js server URL (default to localhost for local dev)
+    NEXTJS_URL = os.getenv("NEXTJS_URL", "http://localhost:3459")
     
     # Get the path after /office
     path = request.path_params.get("path", "")
