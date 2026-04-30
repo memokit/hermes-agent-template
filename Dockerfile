@@ -19,7 +19,8 @@ ARG HERMES_REF=main
 # stop signal still triggers our graceful shutdown. Standard container init
 # (same as Docker's `--init` flag and Kubernetes' pause container).
 #
-# Node.js is required only at build time to compile the Hermes React dashboard.
+# Node.js is required at build time to compile the Hermes React dashboard
+# AND to build the Virtual Office (Next.js).
 # We strip the source + apt lists afterwards to keep the image lean.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates git tini && \
@@ -46,7 +47,7 @@ RUN git clone --depth 1 --branch ${HERMES_REF} https://github.com/NousResearch/h
 # Why pre-build ui-tui (and why we don't delete it after):
 # - The dashboard's embedded Chat tab spawns `node ui-tui/dist/entry.js`
 #   on every WebSocket connect to /api/pty.
-# - hermes's _make_tui_argv runs `npm install` + `npm run build` via
+# - hermes's _make_ui_argv runs `npm install` + `npm run build` via
 #   *synchronous* subprocess.run if dist/entry.js is missing or stale —
 #   that would block the dashboard's asyncio event loop for 30-60s on
 #   the first chat-open, freezing every other request.
@@ -56,18 +57,33 @@ RUN git clone --depth 1 --branch ${HERMES_REF} https://github.com/NousResearch/h
 # - We keep ui-tui/ entirely (node_modules + dist + src) so hermes's
 #   freshness checks don't trigger a re-install at runtime.
 
-# Virtual Office - Next.js static files
+# ============================================
+# Virtual Office - Next.js Build (Multi-stage style)
+# ============================================
+# Copy only the necessary files first
+COPY virtual-office/package.json virtual-office/package-lock.json /app/virtual-office/
+COPY virtual-office/tsconfig.json virtual-office/next.config.js /app/virtual-office/
+
+# Install Next.js dependencies
+WORKDIR /app/virtual-office
+RUN npm install --silent --no-fund --no-audit --progress=false
+
+# Copy source files
+WORKDIR /app
 COPY virtual-office/src /app/virtual-office/src
 COPY virtual-office/public /app/virtual-office/public
-COPY virtual-office/.next /app/virtual-office/.next
-COPY virtual-office/.gitignore /app/virtual-office/
-COPY virtual-office/package.json /app/virtual-office/
-COPY virtual-office/package-lock.json* /app/virtual-office/
-COPY virtual-office/tsconfig.json /app/virtual-office/
-COPY virtual-office/next.config.ts /app/virtual-office/
-COPY virtual-office/next-env.d.ts /app/virtual-office/
-COPY virtual-office/eslint.config.mjs /app/virtual-office/
 
+# Build Next.js (creates .next folder)
+WORKDIR /app/virtual-office
+RUN npm run build
+
+# Copy the built artifacts to final location
+WORKDIR /app
+# (already in place)
+
+# ============================================
+# Python Dependencies & Main App
+# ============================================
 COPY requirements.txt /app/requirements.txt
 RUN uv pip install --system --no-cache -r /app/requirements.txt
 

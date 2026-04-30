@@ -585,8 +585,14 @@ async def page_index(request: Request):
 
 
 async def route_health(request: Request):
-    # Simple health check for Railway - always return ok
-    return JSONResponse({"status": "ok"})
+    """Health check - includes gateway state"""
+    return JSONResponse({
+        "status": "ok",
+        "gateway": gw.state,
+        "pid": gw.proc.pid if gw.proc and gw.proc.returncode is None else None,
+        "uptime": int(time.time() - gw.started_at) if gw.started_at and gw.state == "running" else None,
+        "restarts": gw.restarts
+    })
 
 
 async def api_config_get(request: Request):
